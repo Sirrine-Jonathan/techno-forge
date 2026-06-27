@@ -1,0 +1,28 @@
+{
+  "short_name": "TechnoForge",
+  "name": "TechnoForge AI Studio",
+  "description": "Dynamic techno workstation featuring acid bassline synths and dynamic CRT oscilloscope visualizations.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F0F15",
+  "theme_color": "#0F0F15",
+  "display": "standalone",
+  "orientation": "any"
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFCC" />
+      <stop offset="100%" stop-color="#FF00AA" />
+    </linearGradient>
+  </defs>
+  <!-- Dark Industrial Brutalist Backdrop -->
+  <rect width="512" height="512" rx="120" fill="#0F0F15" />
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="none" stroke="#161622" stroke-width="12" />
+  
+  <!-- Stylized Synth Waveform / Forge Anvil Graphic -->
+  <path d="M120,380 L160,260 L220,260 L240,160 L272,160 L292,260 L352,260 L392,380 Z" fill="url(#cyberGrad)" opacity="0.15" />
+  
+  <!-- Waveform / Equalizer lines -->
+  <g stroke="url(#cyberGrad)" stroke-width="24" stroke-linecap="round">
+    <line x1="160" y1="360" x2="160" y2="280" />
+    <line x1="208" y1="380" x2="208" y2="220" />
+    <line x1="256" y1="410" x2="256" y2="130" />
+    <line x1="304" y1="380" x2="304" y2="180" />
+    <line x1="352" y1="360" x2="352" y2="250" />
+  </g>
+  
+  <!-- Glowing neon indicators -->
+  <circle cx="160" cy="396" r="10" fill="#00FFCC" />
+  <circle cx="208" cy="190" r="10" fill="#FF00AA" />
+  <circle cx="256" cy="100" r="10" fill="#00FFCC" />
+  <circle cx="304" cy="150" r="10" fill="#FF00AA" />
+  <circle cx="352" cy="220" r="10" fill="#00FFCC" />
+</svg>

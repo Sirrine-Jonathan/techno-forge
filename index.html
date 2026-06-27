@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>TechnoForge AI Studio</title>
+    <!-- Progressive Web App Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0F0F15" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  </head>
+  <body class="bg-[#0F0F15] text-neutral-100 antialiased overflow-x-hidden selection:bg-[#FF00AA] selection:text-[#0F0F15]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('ServiceWorker registered', reg))
+            .catch(err => console.error('ServiceWorker registration failed', err));
+        });
+      }
+    </script>
+  </body>
+</html>
+

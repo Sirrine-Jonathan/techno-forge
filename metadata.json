@@ -1,0 +1,6 @@
+{
+  "name": "TechnoForge AI Studio",
+  "description": "A robust, client-side techno sequencer featuring custom Tone.js drum/acid synthesis, real-time vocal DSP beatbox/humming transcription, and client-side Magenta.js MusicRNN sequence evolution.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
