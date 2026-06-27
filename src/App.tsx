@@ -13,10 +13,10 @@ import AudioVisualizer from './components/AudioVisualizer';
 // Standard blank template for tracks
 const createEmptySequencerState = (): SequencerState => ({
   tracks: [
-    { name: 'Kick', steps: new Array(16).fill(false) },
+    { name: 'AcidSynth', steps: new Array(16).fill(false) },
     { name: 'HiHat', steps: new Array(16).fill(false) },
     { name: 'Clap', steps: new Array(16).fill(false) },
-    { name: 'AcidSynth', steps: new Array(16).fill(false) }
+    { name: 'Kick', steps: new Array(16).fill(false) }
   ],
   pitches: new Array(16).fill('C2')
 });
@@ -185,23 +185,28 @@ export default function App() {
       const step = stepCounterRef.current;
       const currentState = stateRef.current;
 
+      const kickTrack = currentState.tracks.find(t => t.name === 'Kick');
+      const hihatTrack = currentState.tracks.find(t => t.name === 'HiHat');
+      const clapTrack = currentState.tracks.find(t => t.name === 'Clap');
+      const acidTrack = currentState.tracks.find(t => t.name === 'AcidSynth');
+
       // 1. Play Kick Drum
-      if (currentState.tracks[0].steps[step] && samplerKickRef.current) {
+      if (kickTrack && kickTrack.steps[step] && samplerKickRef.current) {
         samplerKickRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 2. Play HiHat
-      if (currentState.tracks[1].steps[step] && samplerHiHatRef.current) {
+      if (hihatTrack && hihatTrack.steps[step] && samplerHiHatRef.current) {
         samplerHiHatRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 3. Play Clap
-      if (currentState.tracks[2].steps[step] && samplerClapRef.current) {
+      if (clapTrack && clapTrack.steps[step] && samplerClapRef.current) {
         samplerClapRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 4. Play TB-303 Acid Synth
-      if (currentState.tracks[3].steps[step] && acidSynthRef.current) {
+      if (acidTrack && acidTrack.steps[step] && acidSynthRef.current) {
         const pitch = currentState.pitches[step];
         acidSynthRef.current.triggerAttackRelease(pitch, '16n', time);
       }
@@ -369,10 +374,10 @@ export default function App() {
   const handleVocalTranscription = (result: DSPAnalysisResult) => {
     setSequencerState({
       tracks: [
-        { name: 'Kick', steps: result.tracks.Kick },
+        { name: 'AcidSynth', steps: result.tracks.AcidSynth },
         { name: 'HiHat', steps: result.tracks.HiHat },
         { name: 'Clap', steps: result.tracks.Clap },
-        { name: 'AcidSynth', steps: result.tracks.AcidSynth }
+        { name: 'Kick', steps: result.tracks.Kick }
       ],
       pitches: result.pitches
     });
@@ -386,15 +391,17 @@ export default function App() {
     }
 
     const state = createEmptySequencerState();
+    const getTrackRef = (name: TrackType) => state.tracks.find(t => t.name === name)!;
+
     if (presetName === 'classicAcid') {
       // 4x4 Kick
-      state.tracks[0].steps = [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false];
+      getTrackRef('Kick').steps = [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false];
       // Offbeat HiHat
-      state.tracks[1].steps = [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false];
+      getTrackRef('HiHat').steps = [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false];
       // Backbeat Clap
-      state.tracks[2].steps = [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false];
+      getTrackRef('Clap').steps = [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false];
       // Acid Bouncing Bassline
-      state.tracks[3].steps = [true, true, false, true, true, false, true, true, false, true, true, false, true, false, true, true];
+      getTrackRef('AcidSynth').steps = [true, true, false, true, true, false, true, true, false, true, true, false, true, false, true, true];
       state.pitches = ['C2', 'C2', 'C2', 'D#2', 'C2', 'C2', 'G2', 'C2', 'C2', 'A#2', 'C2', 'C2', 'C3', 'C2', 'D#2', 'A#1'];
       setBpm(126);
       updateCutoff(950);
@@ -402,13 +409,13 @@ export default function App() {
       updateDistortion(0.40);
     } else if (presetName === 'industrial') {
       // Syncopated heavy kick
-      state.tracks[0].steps = [true, false, false, true, true, false, false, false, true, false, true, false, true, false, false, true];
+      getTrackRef('Kick').steps = [true, false, false, true, true, false, false, false, true, false, true, false, true, false, false, true];
       // Fast 16th hats
-      state.tracks[1].steps = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
+      getTrackRef('HiHat').steps = [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true];
       // Backbeat claps
-      state.tracks[2].steps = [false, false, false, false, true, false, false, false, false, false, false, false, true, false, true, false];
+      getTrackRef('Clap').steps = [false, false, false, false, true, false, false, false, false, false, false, false, true, false, true, false];
       // Rolling bassline
-      state.tracks[3].steps = [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false];
+      getTrackRef('AcidSynth').steps = [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false];
       state.pitches = ['A1', 'A1', 'C2', 'C2', 'D#2', 'D#2', 'A1', 'A1', 'G1', 'G1', 'A1', 'A1', 'C2', 'C2', 'A1', 'A1'];
       setBpm(132);
       updateCutoff(650);

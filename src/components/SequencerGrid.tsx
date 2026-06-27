@@ -101,7 +101,9 @@ export default function SequencerGrid({
           </div>
 
           {/* TRACK ROWS */}
-          {sequencerState.tracks.map((track) => {
+          {['AcidSynth', 'HiHat', 'Clap', 'Kick'].map((trackName) => {
+            const track = sequencerState.tracks.find((t) => t.name === trackName);
+            if (!track) return null;
             const isAcid = track.name === 'AcidSynth';
             return (
               <div
