@@ -19,3 +19,32 @@ export interface DSPAnalysisResult {
   };
   pitches: string[];
 }
+
+export interface SoundPreset {
+  id: string;
+  name: string;
+  cutoff: number;
+  resonance: number;
+  distortion: number;
+  sidechainEnabled: boolean;
+  createdAt: string;
+}
+
+export interface TrackPreset {
+  id: string;
+  name: string;
+  trackName: TrackType;
+  steps: boolean[];
+  pitches?: string[]; // Only for AcidSynth
+  createdAt: string;
+}
+
+export interface SongPreset {
+  id: string;
+  name: string;
+  sequencerState: SequencerState;
+  bpm: number;
+  soundPreset: Omit<SoundPreset, 'id' | 'createdAt'>;
+  createdAt: string;
+}
+

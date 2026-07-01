@@ -16,6 +16,7 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [audioSourceUrl, setAudioSourceUrl] = useState<string | null>(null);
+  const [micError, setMicError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -100,6 +101,7 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
       setRecordedBuffer(null);
       setRecordingSeconds(0);
       setCountdown(30); // 30s limit
+      setMicError(null);
 
       // Start duration tracker
       timerRef.current = setInterval(() => {
@@ -116,7 +118,7 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
       drawRealtimeOscilloscope();
     } catch (err) {
       console.error('Error starting voice record:', err);
-      alert('Could not access microphone. Please ensure microphone permissions are granted.');
+      setMicError('Could not access microphone. Please ensure microphone permissions are granted in your browser.');
     }
   };
 
@@ -269,37 +271,14 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400 leading-relaxed">
-        Beatbox/hum a 4-bar techno loop (pshh for high-hats, claps for snares, deep humming for bassline). The offline DSP engine extracts transients and pitch frequencies directly.
-      </p>
+      {micError && (
+        <div className="bg-red-950/80 border border-red-500/50 text-red-200 text-xs p-3 rounded-none font-sans leading-relaxed">
+          <strong className="text-red-400 uppercase tracking-wide block mb-1">Microphone Error</strong>
+          {micError}
+        </div>
+      )}
 
-      {/* WAVEFORM VIEWER STAGE */}
-      <div className="relative border border-neutral-800 rounded bg-[#0F0F15] overflow-hidden">
-        <canvas
-          id="visualizer-canvas"
-          ref={canvasRef}
-          width={640}
-          height={110}
-          className="w-full h-[110px] block"
-        />
-
-        {isRecording && (
-          <div className="absolute top-2 right-2 flex items-center gap-2 bg-red-950/80 border border-red-500 px-2 py-1 rounded text-[10px] text-red-400 animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
-            REC {recordingSeconds}s / 30s
-          </div>
-        )}
-
-        {!isRecording && !recordedBuffer && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-neutral-600 bg-[#0F0F15]/95">
-            <Mic className="w-8 h-8 text-neutral-700" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-neutral-500">Waveform Analyzer Idle</span>
-            <span className="text-[10px] text-neutral-600">Connect microphone and record vocal loop</span>
-          </div>
-        )}
-      </div>
-
-      {/* CONTROLS AREA */}
+      {/* CONTROLS AREA FIRST */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
         {/* Play/Record Buttons */}
         <div className="flex items-center gap-2">
@@ -360,6 +339,32 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
         </button>
       </div>
 
+      {/* WAVEFORM VIEWER STAGE */}
+      <div className="relative border border-neutral-800 rounded bg-[#0F0F15] overflow-hidden">
+        <canvas
+          id="visualizer-canvas"
+          ref={canvasRef}
+          width={640}
+          height={110}
+          className="w-full h-[110px] block"
+        />
+
+        {isRecording && (
+          <div className="absolute top-2 right-2 flex items-center gap-2 bg-red-950/80 border border-red-500 px-2 py-1 rounded text-[10px] text-red-400 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            REC {recordingSeconds}s / 30s
+          </div>
+        )}
+
+        {!isRecording && !recordedBuffer && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-neutral-600 bg-[#0F0F15]/95">
+            <Mic className="w-8 h-8 text-neutral-700" />
+            <span className="text-[11px] font-bold tracking-wider uppercase text-neutral-500">Waveform Analyzer Idle</span>
+            <span className="text-[10px] text-neutral-600">Connect microphone and record vocal loop</span>
+          </div>
+        )}
+      </div>
+
       {recordedBuffer && (
         <div className="flex justify-between items-center bg-neutral-950 border border-neutral-900 px-3 py-2 text-[10px] text-neutral-500 rounded">
           <span className="flex items-center gap-1.5 text-neutral-400">
@@ -371,6 +376,13 @@ export default function VocalRecorder({ bpm, engineStarted, onTranscriptionCompl
           </span>
         </div>
       )}
+
+      <div className="border-t border-neutral-900 my-1" />
+
+      {/* EXPLANATORY INFORMATION SECOND */}
+      <p className="text-xs text-neutral-400 leading-relaxed">
+        Beatbox/hum a 4-bar techno loop (pshh for high-hats, claps for snares, deep humming for bassline). The offline DSP engine extracts transients and pitch frequencies directly.
+      </p>
     </div>
   );
 }

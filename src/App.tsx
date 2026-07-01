@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Tone from 'tone';
 import { Sliders, BrainCircuit, Mic, Waves, HelpCircle, RefreshCw, Volume2, Sparkles, MonitorPlay } from 'lucide-react';
-import { SequencerState, TrackType, DSPAnalysisResult } from './types';
+import { SequencerState, TrackType, DSPAnalysisResult, SongPreset, SoundPreset } from './types';
 import { generateAllSampleUrls } from './utils/audioGenerator';
 import { loadMagentaModels, ModelsLoadingState, evolveMelodyWithMagenta, evolveDrumsWithMagenta } from './utils/magentaHelper';
 import SequencerGrid from './components/SequencerGrid';
@@ -9,6 +9,8 @@ import AudioEngineControls from './components/AudioEngineControls';
 import AIModelControls from './components/AIModelControls';
 import VocalRecorder from './components/VocalRecorder';
 import AudioVisualizer from './components/AudioVisualizer';
+import LibraryControls from './components/LibraryControls';
+import AISoundGenerator from './components/AISoundGenerator';
 
 // Standard blank template for tracks
 const createEmptySequencerState = (): SequencerState => ({
@@ -426,6 +428,41 @@ export default function App() {
     setSequencerState(state);
   };
 
+  // --- LIBRARY DATABASE INTEGRATION HANDLERS ---
+  const handleLoadSong = (song: SongPreset) => {
+    setSequencerState(song.sequencerState);
+    updateBpm(song.bpm);
+    updateCutoff(song.soundPreset.cutoff);
+    updateResonance(song.soundPreset.resonance);
+    updateDistortion(song.soundPreset.distortion);
+    setSidechainEnabled(song.soundPreset.sidechainEnabled);
+  };
+
+  const handleLoadSound = (sound: Omit<SoundPreset, 'id' | 'createdAt'>) => {
+    updateCutoff(sound.cutoff);
+    updateResonance(sound.resonance);
+    updateDistortion(sound.distortion);
+    setSidechainEnabled(sound.sidechainEnabled);
+  };
+
+  const handleLoadTrackPattern = (trackName: TrackType, steps: boolean[], pitches?: string[]) => {
+    setSequencerState((prev) => {
+      const updatedTracks = prev.tracks.map((t) => {
+        if (t.name === trackName) {
+          return { ...t, steps: [...steps] };
+        }
+        return t;
+      });
+      const updatedPitches = trackName === 'AcidSynth' && pitches 
+        ? [...pitches] 
+        : prev.pitches;
+      return {
+        tracks: updatedTracks,
+        pitches: updatedPitches
+      };
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#0F0F15] text-neutral-200 font-sans p-4 md:p-8 flex flex-col gap-6">
       
@@ -548,13 +585,30 @@ export default function App() {
               onEvolveDrums={handleEvolveDrums}
             />
 
-            {/* TECH DOCUMENTATION MANUAL */}
-            <div id="tech-docs-card" className="bg-[#161622]/50 border border-neutral-900 p-5 rounded-none flex flex-col gap-3 font-mono text-xs text-neutral-400">
-              <h4 className="text-[11px] font-bold tracking-widest text-neutral-300 uppercase flex items-center gap-1">
-                <HelpCircle className="w-3.5 h-3.5 text-neutral-500" />
-                SYSTEM MANUAL & HARDWARE SPECS
-              </h4>
-              <ul className="list-disc pl-4 space-y-1.5 leading-relaxed text-[11px]">
+            <AISoundGenerator
+              onApplySound={({ cutoff, resonance, distortion, sidechainEnabled }) => {
+                updateCutoff(cutoff);
+                updateResonance(resonance);
+                updateDistortion(distortion);
+                setSidechainEnabled(sidechainEnabled);
+              }}
+            />
+
+            {/* TECH DOCUMENTATION MANUAL - COLLAPSIBLE FOR FUNCTIONALITY FIRST, INFO SECOND */}
+            <details id="tech-docs-card" className="group bg-[#161622]/50 border border-neutral-900 p-5 rounded-none flex flex-col gap-3 font-mono text-xs text-neutral-400">
+              <summary className="list-none cursor-pointer select-none flex items-center justify-between">
+                <h4 className="text-[11px] font-bold tracking-widest text-neutral-300 uppercase flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5 text-neutral-500" />
+                  SYSTEM MANUAL & HARDWARE SPECS
+                </h4>
+                <span className="text-[9px] text-[#00FFCC] group-open:hidden uppercase font-bold tracking-widest bg-neutral-950/60 border border-neutral-800 px-2 py-0.5 rounded">
+                  Expand Info
+                </span>
+                <span className="text-[9px] text-neutral-500 hidden group-open:inline uppercase font-bold tracking-widest bg-neutral-950/60 border border-neutral-800 px-2 py-0.5 rounded">
+                  Collapse Info
+                </span>
+              </summary>
+              <ul className="list-disc pl-4 mt-3 space-y-2 leading-relaxed text-[11px] group-open:animate-fadeIn">
                 <li>
                   <strong className="text-white">Pure Client-Side Synthesis:</strong> Sample buffers are dynamically written in-memory on startup. No external network request blocks.
                 </li>
@@ -568,11 +622,26 @@ export default function App() {
                   <strong className="text-white">TB-303 Modeling:</strong> Monosynth is shaped by a high-resonance lowpass filter, overdrive distortion, and 4/4 sidechain ducking.
                 </li>
               </ul>
-            </div>
+            </details>
 
           </section>
 
         </div>
+
+        {/* ROW 3: PRESETS LIBRARY & IMPORT/EXPORT TERMINAL */}
+        <section aria-label="TechnoForge Song & Preset Library">
+          <LibraryControls
+            currentSequencerState={sequencerState}
+            currentBpm={bpm}
+            currentCutoff={cutoff}
+            currentResonance={resonance}
+            currentDistortion={distortion}
+            currentSidechainEnabled={sidechainEnabled}
+            onLoadSong={handleLoadSong}
+            onLoadSound={handleLoadSound}
+            onLoadTrack={handleLoadTrackPattern}
+          />
+        </section>
 
       </main>
 

@@ -47,54 +47,7 @@ export default function AIModelControls({
         </span>
       </div>
 
-      <p className="text-xs text-neutral-400 leading-relaxed">
-        Mutate and syncopate your current sequencer loops. This compiles your active grid notes into a Magenta NoteSequence, executes browser-side neural network inference, and writes back the prediction.
-      </p>
-
-      {/* STATUS AND LOADING BAR INDICATORS */}
-      <div className="bg-[#0F0F15] p-3 border border-neutral-900 flex flex-col gap-2">
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="text-neutral-500">MusicRNN Engine Status:</span>
-          {loadingState.loading ? (
-            <span className="text-[#00FFCC] font-bold flex items-center gap-1.5 animate-pulse">
-              <RefreshCw className="w-3 h-3 animate-spin" />
-              Downloading Weights...
-            </span>
-          ) : loadingState.error ? (
-            <span className="text-amber-500 font-bold flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              Offline / Local Fallback Active
-            </span>
-          ) : (
-            <span className="text-[#00FFCC] font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC] animate-ping" />
-              Neural Models Connected
-            </span>
-          )}
-        </div>
-
-        {/* Load indicators */}
-        <div className="grid grid-cols-2 gap-2 text-[10px] mt-1 text-neutral-400">
-          <div className="flex items-center gap-2 bg-neutral-900 px-2 py-1 border border-neutral-800">
-            <span className={`w-1.5 h-1.5 rounded-full ${loadingState.melodyLoaded ? 'bg-[#FF00AA]' : 'bg-neutral-700'}`} />
-            Melody RNN: {loadingState.melodyLoaded ? 'READY' : 'LOCAL ENGINE'}
-          </div>
-          <div className="flex items-center gap-2 bg-neutral-900 px-2 py-1 border border-neutral-800">
-            <span className={`w-1.5 h-1.5 rounded-full ${loadingState.drumsLoaded ? 'bg-[#00FFCC]' : 'bg-neutral-700'}`} />
-            Drums RNN: {loadingState.drumsLoaded ? 'READY' : 'LOCAL ENGINE'}
-          </div>
-        </div>
-
-        {loadingState.error && (
-          <div className="text-[9px] text-neutral-500 mt-1 leading-relaxed italic">
-            Note: Neural weights failed to download from Google cloud. The high-fidelity local algorithmic mutator is fully active to provide instantaneous pattern transpositions and offbeat injections.
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-neutral-900 my-1" />
-
-      {/* CORE CONTROLS */}
+      {/* CORE CONTROLS FIRST */}
       <div className="flex flex-col gap-4">
         {/* Creativity Slider (Temperature) */}
         <div className="flex flex-col gap-1.5">
@@ -159,6 +112,54 @@ export default function AIModelControls({
             )}
           </button>
         </div>
+      </div>
+
+      <div className="border-t border-neutral-900 my-1" />
+
+      {/* EXPLANATORY INFORMATION AND STATUS SECOND */}
+      <p className="text-xs text-neutral-400 leading-relaxed">
+        Mutate and syncopate your current sequencer loops. This compiles your active grid notes into a Magenta NoteSequence, executes browser-side neural network inference, and writes back the prediction.
+      </p>
+
+      {/* STATUS AND LOADING BAR INDICATORS */}
+      <div className="bg-[#0F0F15] p-3 border border-neutral-900 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="text-neutral-500">MusicRNN Engine Status:</span>
+          {loadingState.loading ? (
+            <span className="text-[#00FFCC] font-bold flex items-center gap-1.5 animate-pulse">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Downloading Weights...
+            </span>
+          ) : loadingState.error ? (
+            <span className="text-amber-500 font-bold flex items-center gap-1">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              Offline / Local Fallback Active
+            </span>
+          ) : (
+            <span className="text-[#00FFCC] font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC] animate-ping" />
+              Neural Models Connected
+            </span>
+          )}
+        </div>
+
+        {/* Load indicators */}
+        <div className="grid grid-cols-2 gap-2 text-[10px] mt-1 text-neutral-400">
+          <div className="flex items-center gap-2 bg-neutral-900 px-2 py-1 border border-neutral-800">
+            <span className={`w-1.5 h-1.5 rounded-full ${loadingState.melodyLoaded ? 'bg-[#FF00AA]' : 'bg-neutral-700'}`} />
+            Melody RNN: {loadingState.melodyLoaded ? 'READY' : 'LOCAL ENGINE'}
+          </div>
+          <div className="flex items-center gap-2 bg-neutral-900 px-2 py-1 border border-neutral-800">
+            <span className={`w-1.5 h-1.5 rounded-full ${loadingState.drumsLoaded ? 'bg-[#00FFCC]' : 'bg-neutral-700'}`} />
+            Drums RNN: {loadingState.drumsLoaded ? 'READY' : 'LOCAL ENGINE'}
+          </div>
+        </div>
+
+        {loadingState.error && (
+          <div className="text-[9px] text-neutral-500 mt-1 leading-relaxed italic">
+            Note: Neural weights failed to download from Google cloud. The high-fidelity local algorithmic mutator is fully active to provide instantaneous pattern transpositions and offbeat injections.
+          </div>
+        )}
       </div>
     </div>
   );
