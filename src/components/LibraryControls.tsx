@@ -318,7 +318,7 @@ export default function LibraryControls({
       triggerNotification(`Imported & applied sound preset: "${payload.name}"`);
     } else if (type === 'track') {
       const preset = payload as TrackPreset;
-      onLoadTrack(preset.trackName, preset.steps, preset.pitches);
+      onLoadTrack(preset.trackName, preset.steps, preset.pitches, preset.soundPreset);
       triggerNotification(`Imported & applied pattern to track ${preset.trackName}: "${preset.name}"`);
     }
     
@@ -336,11 +336,23 @@ export default function LibraryControls({
       triggerNotification(`Added song to library: "${s.name}"`);
     } else if (type === 'sound') {
       const snd = payload as SoundPreset;
-      saveSound(snd.name, snd.cutoff, snd.resonance, snd.distortion, snd.sidechainEnabled);
+      saveSound(
+        snd.name,
+        snd.cutoff,
+        snd.resonance,
+        snd.distortion,
+        snd.sidechainEnabled,
+        snd.waveform,
+        snd.decay,
+        snd.envMod,
+        snd.portamento,
+        snd.delayFeedback,
+        snd.delayMix
+      );
       triggerNotification(`Added atomic sound to library: "${snd.name}"`);
     } else if (type === 'track') {
       const p = payload as TrackPreset;
-      saveTrack(p.name, p.trackName, p.steps, p.pitches);
+      saveTrack(p.name, p.trackName, p.steps, p.pitches, p.soundPreset);
       triggerNotification(`Added track pattern to library: "${p.name}"`);
     }
 
