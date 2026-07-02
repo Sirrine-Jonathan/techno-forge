@@ -1,21 +1,29 @@
-export type TrackType = 'Kick' | 'HiHat' | 'Clap' | 'AcidSynth';
+export type TrackType = string;
 
 export interface GridTrack {
   name: TrackType;
   steps: boolean[];
+  pitches?: string[]; // Per-track pitches for synths, length 16
+  cutoff?: number;
+  resonance?: number;
+  distortion?: number;
+  sidechainEnabled?: boolean;
+  waveform?: 'sawtooth' | 'square';
+  decay?: number;
+  envMod?: number;
+  portamento?: number;
+  delayFeedback?: number;
+  delayMix?: number;
 }
 
 export interface SequencerState {
   tracks: GridTrack[];
-  pitches: string[]; // Parallel pitch array for AcidSynth steps, length 16
+  pitches: string[]; // Fallback or global pitch array
 }
 
 export interface DSPAnalysisResult {
   tracks: {
-    Kick: boolean[];
-    HiHat: boolean[];
-    Clap: boolean[];
-    AcidSynth: boolean[];
+    [trackName: string]: boolean[];
   };
   pitches: string[];
 }
@@ -28,6 +36,12 @@ export interface SoundPreset {
   distortion: number;
   sidechainEnabled: boolean;
   createdAt: string;
+  waveform?: 'sawtooth' | 'square';
+  decay?: number;
+  envMod?: number;
+  portamento?: number;
+  delayFeedback?: number;
+  delayMix?: number;
 }
 
 export interface TrackPreset {
@@ -35,7 +49,8 @@ export interface TrackPreset {
   name: string;
   trackName: TrackType;
   steps: boolean[];
-  pitches?: string[]; // Only for AcidSynth
+  pitches?: string[]; // Only for Synth
+  soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>;
   createdAt: string;
 }
 

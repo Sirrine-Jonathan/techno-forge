@@ -87,7 +87,19 @@ export function getSavedSounds(): SoundPreset[] {
   }
 }
 
-export function saveSound(name: string, cutoff: number, resonance: number, distortion: number, sidechainEnabled: boolean): SoundPreset {
+export function saveSound(
+  name: string, 
+  cutoff: number, 
+  resonance: number, 
+  distortion: number, 
+  sidechainEnabled: boolean,
+  waveform?: 'sawtooth' | 'square',
+  decay?: number,
+  envMod?: number,
+  portamento?: number,
+  delayFeedback?: number,
+  delayMix?: number
+): SoundPreset {
   const sounds = getSavedSounds();
   const newSound: SoundPreset = {
     id: `sound-${Date.now()}`,
@@ -96,6 +108,12 @@ export function saveSound(name: string, cutoff: number, resonance: number, disto
     resonance,
     distortion,
     sidechainEnabled,
+    waveform,
+    decay,
+    envMod,
+    portamento,
+    delayFeedback,
+    delayMix,
     createdAt: new Date().toISOString(),
   };
   sounds.push(newSound);
@@ -121,7 +139,13 @@ export function getSavedTracks(): TrackPreset[] {
   }
 }
 
-export function saveTrack(name: string, trackName: TrackType, steps: boolean[], pitches?: string[]): TrackPreset {
+export function saveTrack(
+  name: string, 
+  trackName: TrackType, 
+  steps: boolean[], 
+  pitches?: string[],
+  soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>
+): TrackPreset {
   const tracks = getSavedTracks();
   const newTrack: TrackPreset = {
     id: `track-${Date.now()}`,
@@ -129,6 +153,7 @@ export function saveTrack(name: string, trackName: TrackType, steps: boolean[], 
     trackName,
     steps,
     pitches,
+    soundPreset,
     createdAt: new Date().toISOString(),
   };
   tracks.push(newTrack);

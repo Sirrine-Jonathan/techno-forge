@@ -18,10 +18,16 @@ interface LibraryControlsProps {
   currentResonance: number;
   currentDistortion: number;
   currentSidechainEnabled: boolean;
+  currentWaveform: 'sawtooth' | 'square';
+  currentDecay: number;
+  currentEnvMod: number;
+  currentPortamento: number;
+  currentDelayFeedback: number;
+  currentDelayMix: number;
 
   onLoadSong: (song: SongPreset) => void;
   onLoadSound: (sound: Omit<SoundPreset, 'id' | 'createdAt'>) => void;
-  onLoadTrack: (trackName: TrackType, steps: boolean[], pitches?: string[]) => void;
+  onLoadTrack: (trackName: TrackType, steps: boolean[], pitches?: string[], soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>) => void;
 }
 
 export default function LibraryControls({
@@ -31,6 +37,12 @@ export default function LibraryControls({
   currentResonance,
   currentDistortion,
   currentSidechainEnabled,
+  currentWaveform,
+  currentDecay,
+  currentEnvMod,
+  currentPortamento,
+  currentDelayFeedback,
+  currentDelayMix,
   onLoadSong,
   onLoadSound,
   onLoadTrack
@@ -59,10 +71,19 @@ export default function LibraryControls({
   // Success indicator badges
   const [successAction, setSuccessAction] = useState<string | null>(null);
 
-  // Load lists on mount
+  // Load lists on mount and sync selected track
   useEffect(() => {
     refreshLibrary();
   }, []);
+
+  useEffect(() => {
+    if (currentSequencerState.tracks.length > 0) {
+      const exists = currentSequencerState.tracks.some(t => t.name === selectedTrackToSave);
+      if (!exists) {
+        setSelectedTrackToSave(currentSequencerState.tracks[0].name);
+      }
+    }
+  }, [currentSequencerState.tracks, selectedTrackToSave]);
 
   const refreshLibrary = () => {
     setSongs(getSavedSongs());
@@ -85,7 +106,13 @@ export default function LibraryControls({
       resonance: currentResonance,
       distortion: currentDistortion,
       sidechainEnabled: currentSidechainEnabled,
-      name: soundInputName.trim() || 'Custom Synth Model'
+      name: soundInputName.trim() || 'Custom Synth Model',
+      waveform: currentWaveform,
+      decay: currentDecay,
+      envMod: currentEnvMod,
+      portamento: currentPortamento,
+      delayFeedback: currentDelayFeedback,
+      delayMix: currentDelayMix
     };
     const saved = saveSong(songInputName, currentSequencerState, currentBpm, soundData);
     setSongInputName('');
@@ -112,7 +139,13 @@ export default function LibraryControls({
       currentCutoff,
       currentResonance,
       currentDistortion,
-      currentSidechainEnabled
+      currentSidechainEnabled,
+      currentWaveform,
+      currentDecay,
+      currentEnvMod,
+      currentPortamento,
+      currentDelayFeedback,
+      currentDelayMix
     );
     setSoundInputName('');
     refreshLibrary();
@@ -125,7 +158,13 @@ export default function LibraryControls({
       cutoff: sound.cutoff,
       resonance: sound.resonance,
       distortion: sound.distortion,
-      sidechainEnabled: sound.sidechainEnabled
+      sidechainEnabled: sound.sidechainEnabled,
+      waveform: sound.waveform,
+      decay: sound.decay,
+      envMod: sound.envMod,
+      portamento: sound.portamento,
+      delayFeedback: sound.delayFeedback,
+      delayMix: sound.delayMix
     });
     triggerNotification(`Loaded sound model: "${sound.name}"`);
   };
@@ -142,13 +181,29 @@ export default function LibraryControls({
     const targetTrack = currentSequencerState.tracks.find(t => t.name === selectedTrackToSave);
     if (!targetTrack) return;
 
-    // Save pitches too if saving the AcidSynth track
-    const pitchesToSave = selectedTrackToSave === 'AcidSynth' ? currentSequencerState.pitches : undefined;
+    const isSynth = selectedTrackToSave !== 'Kick' && selectedTrackToSave !== 'HiHat' && selectedTrackToSave !== 'Clap';
+    const pitchesToSave = isSynth ? (targetTrack.pitches || [...currentSequencerState.pitches]) : undefined;
+
+    const soundPresetToSave = isSynth ? {
+      name: trackInputName,
+      cutoff: targetTrack.cutoff !== undefined ? targetTrack.cutoff : currentCutoff,
+      resonance: targetTrack.resonance !== undefined ? targetTrack.resonance : currentResonance,
+      distortion: targetTrack.distortion !== undefined ? targetTrack.distortion : currentDistortion,
+      sidechainEnabled: targetTrack.sidechainEnabled !== undefined ? targetTrack.sidechainEnabled : currentSidechainEnabled,
+      waveform: targetTrack.waveform || currentWaveform,
+      decay: targetTrack.decay !== undefined ? targetTrack.decay : currentDecay,
+      envMod: targetTrack.envMod !== undefined ? targetTrack.envMod : currentEnvMod,
+      portamento: targetTrack.portamento !== undefined ? targetTrack.portamento : currentPortamento,
+      delayFeedback: targetTrack.delayFeedback !== undefined ? targetTrack.delayFeedback : currentDelayFeedback,
+      delayMix: targetTrack.delayMix !== undefined ? targetTrack.delayMix : currentDelayMix,
+    } : undefined;
+
     const saved = saveTrack(
       trackInputName,
       selectedTrackToSave,
       targetTrack.steps,
-      pitchesToSave
+      pitchesToSave,
+      soundPresetToSave
     );
     setTrackInputName('');
     refreshLibrary();
@@ -157,7 +212,7 @@ export default function LibraryControls({
 
   const handleLoadTrackPattern = (trackPreset: TrackPreset, targetTrackOverride?: TrackType) => {
     const destinationTrack = targetTrackOverride || trackPreset.trackName;
-    onLoadTrack(destinationTrack, trackPreset.steps, trackPreset.pitches);
+    onLoadTrack(destinationTrack, trackPreset.steps, trackPreset.pitches, trackPreset.soundPreset);
     triggerNotification(`Loaded pattern into ${destinationTrack}: "${trackPreset.name}"`);
   };
 
@@ -479,10 +534,11 @@ export default function LibraryControls({
               onChange={(e) => setSelectedTrackToSave(e.target.value as TrackType)}
               className="bg-neutral-950 border border-neutral-800 text-[10px] text-neutral-300 font-mono px-2 py-1.5 focus:border-orange-400 focus:outline-none focus:text-white rounded-none cursor-pointer shrink-0"
             >
-              <option value="AcidSynth">AcidSynth</option>
-              <option value="Kick">Kick Drum</option>
-              <option value="HiHat">HiHat</option>
-              <option value="Clap">Clap</option>
+              {currentSequencerState.tracks.map((track) => (
+                <option key={track.name} value={track.name}>
+                  {track.name}
+                </option>
+              ))}
             </select>
             <div className="flex flex-1 gap-2">
               <input
