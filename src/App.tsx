@@ -46,6 +46,35 @@ interface SynthVoice {
   volume: Tone.Volume;
 }
 
+const isSynthTrack = (trackName: string) => trackName !== 'Kick' && trackName !== 'HiHat' && trackName !== 'Clap';
+
+const applyLegacySoundPresetToTrack = (
+  track: GridTrack,
+  soundPreset: Omit<SoundPreset, 'id' | 'createdAt'>
+): GridTrack => ({
+  ...track,
+  cutoff: track.cutoff ?? soundPreset.cutoff,
+  resonance: track.resonance ?? soundPreset.resonance,
+  distortion: track.distortion ?? soundPreset.distortion,
+  sidechainEnabled: track.sidechainEnabled ?? soundPreset.sidechainEnabled,
+  waveform: track.waveform ?? soundPreset.waveform,
+  decay: track.decay ?? soundPreset.decay,
+  envMod: track.envMod ?? soundPreset.envMod,
+  portamento: track.portamento ?? soundPreset.portamento,
+  delayFeedback: track.delayFeedback ?? soundPreset.delayFeedback,
+  delayMix: track.delayMix ?? soundPreset.delayMix
+});
+
+const normalizeSongPreset = (song: SongPreset): SongPreset => ({
+  ...song,
+  sequencerState: {
+    ...song.sequencerState,
+    tracks: song.sequencerState.tracks.map((track) =>
+      isSynthTrack(track.name) ? applyLegacySoundPresetToTrack(track, song.soundPreset) : track
+    )
+  }
+});
+
 export default function App() {
   // --- STATE ---
   const [sequencerState, setSequencerState] = useState<SequencerState>(createEmptySequencerState());
@@ -855,8 +884,9 @@ export default function App() {
 
   // --- LIBRARY DATABASE INTEGRATION HANDLERS ---
   const handleLoadSong = (song: SongPreset) => {
-    setSequencerState(song.sequencerState);
-    updateBpm(song.bpm);
+    const normalizedSong = normalizeSongPreset(song);
+    setSequencerState(normalizedSong.sequencerState);
+    updateBpm(normalizedSong.bpm);
 
     // If engine started, completely sync/rebuild active voices mapping
     if (engineStarted) {
@@ -870,9 +900,8 @@ export default function App() {
       });
       synthVoicesRef.current.clear();
 
-      song.sequencerState.tracks.forEach((track) => {
-        const isSynth = track.name !== 'Kick' && track.name !== 'HiHat' && track.name !== 'Clap';
-        if (isSynth) {
+      normalizedSong.sequencerState.tracks.forEach((track) => {
+        if (isSynthTrack(track.name)) {
           const voice = createSynthVoice(track.name, track);
           synthVoicesRef.current.set(track.name, voice);
         }
@@ -880,7 +909,7 @@ export default function App() {
     }
 
     // Select the first synth track found
-    const firstSynth = song.sequencerState.tracks.find(t => t.name !== 'Kick' && t.name !== 'HiHat' && t.name !== 'Clap');
+    const firstSynth = normalizedSong.sequencerState.tracks.find((t) => isSynthTrack(t.name));
     if (firstSynth) {
       setSelectedTrackName(firstSynth.name);
     }
