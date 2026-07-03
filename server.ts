@@ -1,16 +1,44 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
+// Catch unhandled errors that would otherwise silently kill the process
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled promise rejection:', reason);
+  process.exit(1);
+});
+
 async function startServer() {
   const app = express();
   const PORT = parseInt(process.env.PORT || '3000', 10);
+  const NODE_ENV = process.env.NODE_ENV || 'development';
+
+  // Log key environment info so crashes are easier to diagnose
+  console.log(`[startup] NODE_ENV=${NODE_ENV}`);
+  console.log(`[startup] PORT=${PORT} (from ${process.env.PORT ? 'process.env.PORT' : 'default'})`);
+  console.log(`[startup] GEMINI_API_KEY=${process.env.GEMINI_API_KEY ? 'present' : 'MISSING – will use fallback'}`);
 
   // Enable JSON request body parsing
   app.use(express.json());
+
+  // Request logging middleware
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - start;
+      console.log(`[request] ${req.method} ${req.path} → ${res.statusCode} (${ms}ms)`);
+    });
+    next();
+  });
 
   // Initialize the Gemini SDK client with required headers and optional fallback
   const apiKey = process.env.GEMINI_API_KEY;
@@ -130,15 +158,22 @@ async function startServer() {
   });
 
   // --- Vite Dev Server Middleware vs Production Static Serving ---
-  if (process.env.NODE_ENV !== "production") {
+  if (NODE_ENV !== "production") {
+    console.log('[startup] Starting Vite dev server...');
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
+    console.log('[startup] Vite dev server ready');
   } else {
     const distPath = path.join(process.cwd(), 'dist');
+    if (!fs.existsSync(distPath)) {
+      console.error(`[startup] ERROR: dist/ directory not found at ${distPath}. Run "npm run build" before starting in production.`);
+      process.exit(1);
+    }
+    console.log(`[startup] Serving static files from ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -146,7 +181,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`TechnoForge AI Server running on http://0.0.0.0:${PORT}`);
+    console.log(`[startup] TechnoForge AI Server listening on http://0.0.0.0:${PORT}`);
   });
 }
 
@@ -248,4 +283,7 @@ function generateFallbackPreset(prompt: string) {
   };
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('[FATAL] startServer() threw an unhandled error:', err);
+  process.exit(1);
+});
