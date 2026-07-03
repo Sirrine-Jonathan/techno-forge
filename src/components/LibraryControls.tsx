@@ -27,7 +27,7 @@ interface LibraryControlsProps {
 
   onLoadSong: (song: SongPreset) => void;
   onLoadSound: (sound: Omit<SoundPreset, 'id' | 'createdAt'>) => void;
-  onLoadTrack: (trackName: TrackType, steps: boolean[], pitches?: string[], soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>) => void;
+  onLoadTrack: (trackName: TrackType, steps: boolean[], pitches?: string[], noteLengths?: number[], soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>) => void;
 }
 
 export default function LibraryControls({
@@ -183,6 +183,7 @@ export default function LibraryControls({
 
     const isSynth = selectedTrackToSave !== 'Kick' && selectedTrackToSave !== 'HiHat' && selectedTrackToSave !== 'Clap';
     const pitchesToSave = isSynth ? (targetTrack.pitches || [...currentSequencerState.pitches]) : undefined;
+    const noteLengthsToSave = isSynth ? targetTrack.noteLengths : undefined;
 
     const soundPresetToSave = isSynth ? {
       name: trackInputName,
@@ -203,6 +204,7 @@ export default function LibraryControls({
       selectedTrackToSave,
       targetTrack.steps,
       pitchesToSave,
+      noteLengthsToSave,
       soundPresetToSave
     );
     setTrackInputName('');
@@ -212,7 +214,7 @@ export default function LibraryControls({
 
   const handleLoadTrackPattern = (trackPreset: TrackPreset, targetTrackOverride?: TrackType) => {
     const destinationTrack = targetTrackOverride || trackPreset.trackName;
-    onLoadTrack(destinationTrack, trackPreset.steps, trackPreset.pitches, trackPreset.soundPreset);
+    onLoadTrack(destinationTrack, trackPreset.steps, trackPreset.pitches, trackPreset.noteLengths, trackPreset.soundPreset);
     triggerNotification(`Loaded pattern into ${destinationTrack}: "${trackPreset.name}"`);
   };
 
@@ -318,7 +320,7 @@ export default function LibraryControls({
       triggerNotification(`Imported & applied sound preset: "${payload.name}"`);
     } else if (type === 'track') {
       const preset = payload as TrackPreset;
-      onLoadTrack(preset.trackName, preset.steps, preset.pitches, preset.soundPreset);
+      onLoadTrack(preset.trackName, preset.steps, preset.pitches, preset.noteLengths, preset.soundPreset);
       triggerNotification(`Imported & applied pattern to track ${preset.trackName}: "${preset.name}"`);
     }
     
@@ -352,7 +354,7 @@ export default function LibraryControls({
       triggerNotification(`Added atomic sound to library: "${snd.name}"`);
     } else if (type === 'track') {
       const p = payload as TrackPreset;
-      saveTrack(p.name, p.trackName, p.steps, p.pitches, p.soundPreset);
+      saveTrack(p.name, p.trackName, p.steps, p.pitches, p.noteLengths, p.soundPreset);
       triggerNotification(`Added track pattern to library: "${p.name}"`);
     }
 

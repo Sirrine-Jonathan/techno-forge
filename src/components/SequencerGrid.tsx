@@ -11,6 +11,7 @@ interface SequencerGridProps {
   selectedTrackName: string;
   onToggleStep: (trackName: string, stepIndex: number) => void;
   onUpdatePitch: (trackName: string, stepIndex: number, pitch: string) => void;
+  onUpdateNoteLength: (trackName: string, stepIndex: number, durationInSteps: number) => void;
   onPreviewPitch: (pitch: string) => void;
   onSelectTrack: (trackName: string) => void;
   onAddTrack: (trackName: string) => void;
@@ -29,6 +30,14 @@ const ACID_SCALE = [
   'C3', 'D#3', 'F3', 'G3', 'A#3'
 ];
 
+const DURATION_OPTIONS = [
+  { label: '1/16', steps: 1 },
+  { label: '1/8', steps: 2 },
+  { label: '1/4', steps: 4 },
+  { label: '1/2', steps: 8 },
+  { label: '1', steps: 16 }
+];
+
 export default function SequencerGrid({
   sequencerState,
   activeStep,
@@ -36,6 +45,7 @@ export default function SequencerGrid({
   selectedTrackName,
   onToggleStep,
   onUpdatePitch,
+  onUpdateNoteLength,
   onPreviewPitch,
   onSelectTrack,
   onAddTrack,
@@ -57,13 +67,17 @@ export default function SequencerGrid({
   const [editingTrackName, setEditingTrackName] = useState<string | null>(null);
   const [renameInputVal, setRenameInputVal] = useState('');
 
-  const getStepColorClass = (trackName: string, isActive: boolean, isCurrentPlayStep: boolean) => {
+  const getStepColorClass = (trackName: string, isActive: boolean, isCurrentPlayStep: boolean, isContinuation: boolean = false) => {
     const isSynth = trackName !== 'Kick' && trackName !== 'HiHat' && trackName !== 'Clap';
     if (isSynth) {
       if (isActive) {
         return isCurrentPlayStep
-          ? 'bg-[#FF00AA] border-[#FF00AA] text-[#0F0F15] shadow-[0_0_15px_rgba(255,0,170,0.8)] scale-98 font-bold'
-          : 'bg-pink-950/40 border-[#FF00AA]/80 text-[#FF00AA] hover:bg-pink-950/60 font-bold';
+          ? isContinuation
+            ? 'bg-[#FF00AA]/80 border-[#FF00AA]/70 text-[#0F0F15] shadow-[0_0_12px_rgba(255,0,170,0.5)] font-bold'
+            : 'bg-[#FF00AA] border-[#FF00AA] text-[#0F0F15] shadow-[0_0_15px_rgba(255,0,170,0.8)] scale-98 font-bold'
+          : isContinuation
+            ? 'bg-pink-950/25 border-[#FF00AA]/50 text-[#FF00AA]/80 hover:bg-pink-950/40 font-bold'
+            : 'bg-pink-950/40 border-[#FF00AA]/80 text-[#FF00AA] hover:bg-pink-950/60 font-bold';
       }
       return isCurrentPlayStep
         ? 'bg-neutral-800 border-neutral-700 text-neutral-400'
@@ -81,10 +95,33 @@ export default function SequencerGrid({
     }
   };
 
-  const handleStepClick = (e: React.MouseEvent, trackName: string, stepIdx: number, isActive: boolean) => {
+  const getNoteLength = (stepsLength: number, rawLength?: number) => {
+    const fallback = rawLength && Number.isFinite(rawLength) ? Math.floor(rawLength) : 1;
+    return Math.max(1, Math.min(fallback, stepsLength));
+  };
+
+  const getTrackContinuationStarts = (steps: boolean[], noteLengths?: number[]) => {
+    const continuationStarts = new Array<number | null>(steps.length).fill(null);
+    for (let startIdx = 0; startIdx < steps.length; startIdx += 1) {
+      if (!steps[startIdx]) continue;
+      const stepLength = getNoteLength(steps.length - startIdx, noteLengths?.[startIdx]);
+      for (let continuationIdx = startIdx + 1; continuationIdx < startIdx + stepLength && continuationIdx < steps.length; continuationIdx += 1) {
+        continuationStarts[continuationIdx] = startIdx;
+      }
+    }
+    return continuationStarts;
+  };
+
+  const handleStepClick = (
+    e: React.MouseEvent,
+    trackName: string,
+    stepIdx: number,
+    isActive: boolean,
+    continuationStart: number | null = null
+  ) => {
     const isSynth = trackName !== 'Kick' && trackName !== 'HiHat' && trackName !== 'Clap';
-    if (isSynth && isActive) {
-      setActivePitchPicker({ trackName, stepIdx });
+    if (isSynth && (isActive || continuationStart !== null)) {
+      setActivePitchPicker({ trackName, stepIdx: continuationStart ?? stepIdx });
     } else {
       onToggleStep(trackName, stepIdx);
       setActivePitchPicker(null);
@@ -231,6 +268,7 @@ export default function SequencerGrid({
             const isSelected = selectedTrackName === track.name;
             const isMuted = !!track.muted;
             const currentPitches = track.pitches || sequencerState.pitches;
+            const continuationStarts = isSynth ? getTrackContinuationStarts(track.steps, track.noteLengths) : null;
 
             return (
               <div
@@ -381,15 +419,22 @@ export default function SequencerGrid({
                 {/* STEP GRID CELLS */}
                 {track.steps.map((isActive, stepIdx) => {
                   const isCurrentPlayStep = activeStep === stepIdx && isPlaying;
+                  const continuationStart = continuationStarts?.[stepIdx] ?? null;
+                  const isContinuation = continuationStart !== null && !isActive;
+                  const noteLength = isSynth
+                    ? getNoteLength(track.steps.length - stepIdx, track.noteLengths?.[stepIdx])
+                    : 1;
+                  const durationLabel = DURATION_OPTIONS.find((option) => option.steps === noteLength)?.label || `${noteLength}x`;
                   return (
                     <div key={stepIdx} className="relative aspect-square min-h-[38px] w-full">
                       <button
                         id={`step-${track.name}-${stepIdx}`}
-                        onClick={(e) => handleStepClick(e, track.name, stepIdx, isActive)}
+                        onClick={(e) => handleStepClick(e, track.name, stepIdx, isActive, continuationStart)}
                         className={`w-full h-full border text-[10px] cursor-pointer flex flex-col items-center justify-center transition-all rounded-none ${getStepColorClass(
                           track.name,
-                          isActive,
-                          isCurrentPlayStep
+                          isActive || isContinuation,
+                          isCurrentPlayStep,
+                          isContinuation
                         )}`}
                       >
                         {/* Visual indicator of note pitch if Synth and active */}
@@ -398,7 +443,17 @@ export default function SequencerGrid({
                             <span className="text-[8px] tracking-tighter opacity-90 font-bold font-mono">
                               {currentPitches[stepIdx] || 'C2'}
                             </span>
-                            <span className="text-[7px] opacity-40 font-mono">✎</span>
+                            <span className="text-[7px] opacity-70 font-mono">{durationLabel}</span>
+                          </div>
+                        ) : isSynth && isContinuation ? (
+                          <div className="text-[9px] opacity-50 font-mono">—</div>
+                        ) : null}
+                        {isSynth && isActive && (
+                          <div className="absolute bottom-0.5 right-0.5 text-[7px] opacity-40 font-mono">✎</div>
+                        )}
+                        {isSynth && isActive && noteLength > 1 ? (
+                          <div className="absolute top-0.5 left-0.5 text-[7px] opacity-70 font-bold">
+                            +{noteLength - 1}
                           </div>
                         ) : null}
                       </button>
@@ -543,6 +598,41 @@ export default function SequencerGrid({
                 Keep Active
               </button>
             </div>
+
+            {(() => {
+              const targetTrack = sequencerState.tracks.find(t => t.name === activePitchPicker.trackName);
+              const currentLength = getNoteLength(
+                (targetTrack?.steps.length || 16) - activePitchPicker.stepIdx,
+                targetTrack?.noteLengths?.[activePitchPicker.stepIdx]
+              );
+              const maxSpan = (targetTrack?.steps.length || 16) - activePitchPicker.stepIdx;
+              return (
+                <div className="mt-1 border-t border-neutral-800 pt-2">
+                  <div className="text-[9px] text-neutral-500 uppercase tracking-wider mb-1.5 font-bold">
+                    Note Duration
+                  </div>
+                  <div className="grid grid-cols-5 gap-1">
+                    {DURATION_OPTIONS.map((option) => {
+                      const isDisabled = option.steps > maxSpan;
+                      return (
+                        <button
+                          key={option.label}
+                          disabled={isDisabled}
+                          onClick={() => onUpdateNoteLength(activePitchPicker.trackName, activePitchPicker.stepIdx, option.steps)}
+                          className={`text-[9px] py-1 border font-bold transition-all ${
+                            currentLength === option.steps
+                              ? 'bg-[#00FFCC] text-black border-[#00FFCC]'
+                              : 'bg-[#0F0F15] text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-600'
+                          } disabled:opacity-30 disabled:hover:text-neutral-400 disabled:hover:border-neutral-800 cursor-pointer`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

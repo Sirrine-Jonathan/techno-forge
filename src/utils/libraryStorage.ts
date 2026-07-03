@@ -144,6 +144,7 @@ export function saveTrack(
   trackName: TrackType, 
   steps: boolean[], 
   pitches?: string[],
+  noteLengths?: number[],
   soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>
 ): TrackPreset {
   const tracks = getSavedTracks();
@@ -153,6 +154,7 @@ export function saveTrack(
     trackName,
     steps,
     pitches,
+    noteLengths,
     soundPreset,
     createdAt: new Date().toISOString(),
   };
