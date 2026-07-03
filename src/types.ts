@@ -3,6 +3,7 @@ export type TrackType = string;
 export interface GridTrack {
   name: TrackType;
   steps: boolean[];
+  muted?: boolean;
   pitches?: string[]; // Per-track pitches for synths, length 16
   cutoff?: number;
   resonance?: number;
@@ -62,4 +63,3 @@ export interface SongPreset {
   soundPreset: Omit<SoundPreset, 'id' | 'createdAt'>;
   createdAt: string;
 }
-

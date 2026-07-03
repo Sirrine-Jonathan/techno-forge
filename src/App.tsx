@@ -18,6 +18,7 @@ const createEmptySequencerState = (): SequencerState => ({
     { 
       name: 'AcidSynth', 
       steps: new Array(16).fill(false),
+      muted: false,
       pitches: new Array(16).fill('C2'),
       cutoff: 800,
       resonance: 6.0,
@@ -30,9 +31,9 @@ const createEmptySequencerState = (): SequencerState => ({
       delayFeedback: 0.40,
       delayMix: 0.20
     },
-    { name: 'HiHat', steps: new Array(16).fill(false) },
-    { name: 'Clap', steps: new Array(16).fill(false) },
-    { name: 'Kick', steps: new Array(16).fill(false) }
+    { name: 'HiHat', steps: new Array(16).fill(false), muted: false },
+    { name: 'Clap', steps: new Array(16).fill(false), muted: false },
+    { name: 'Kick', steps: new Array(16).fill(false), muted: false }
   ],
   pitches: new Array(16).fill('C2')
 });
@@ -311,24 +312,24 @@ export default function App() {
       const clapTrack = currentState.tracks.find(t => t.name === 'Clap');
 
       // 1. Play Kick Drum
-      if (kickTrack && kickTrack.steps[step] && samplerKickRef.current) {
+      if (kickTrack && !kickTrack.muted && kickTrack.steps[step] && samplerKickRef.current) {
         samplerKickRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 2. Play HiHat
-      if (hihatTrack && hihatTrack.steps[step] && samplerHiHatRef.current) {
+      if (hihatTrack && !hihatTrack.muted && hihatTrack.steps[step] && samplerHiHatRef.current) {
         samplerHiHatRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 3. Play Clap
-      if (clapTrack && clapTrack.steps[step] && samplerClapRef.current) {
+      if (clapTrack && !clapTrack.muted && clapTrack.steps[step] && samplerClapRef.current) {
         samplerClapRef.current.triggerAttackRelease('C2', '8n', time);
       }
 
       // 4. Play all TB-303 Acid Synths
       currentState.tracks.forEach((track) => {
         const isSynth = track.name !== 'Kick' && track.name !== 'HiHat' && track.name !== 'Clap';
-        if (isSynth && track.steps[step]) {
+        if (isSynth && !track.muted && track.steps[step]) {
           const voice = synthVoicesRef.current.get(track.name);
           if (voice) {
             const trackPitches = track.pitches || currentState.pitches;
@@ -342,7 +343,7 @@ export default function App() {
       if (step === 0 || step === 4 || step === 8 || step === 12) {
         currentState.tracks.forEach((track) => {
           const isSynth = track.name !== 'Kick' && track.name !== 'HiHat' && track.name !== 'Clap';
-          if (isSynth) {
+          if (isSynth && !track.muted) {
             const hasSidechain = track.sidechainEnabled !== undefined ? track.sidechainEnabled : true;
             if (hasSidechain) {
               const voice = synthVoicesRef.current.get(track.name);
@@ -579,6 +580,9 @@ export default function App() {
 
     // Audition preview note
     if (!isPlaying && engineStarted) {
+      const track = sequencerState.tracks.find(t => t.name === trackName);
+      if (track?.muted) return;
+
       if (trackName === 'Kick' && samplerKickRef.current) {
         samplerKickRef.current.triggerAttackRelease('C2', '8n');
       } else if (trackName === 'HiHat' && samplerHiHatRef.current) {
@@ -588,7 +592,6 @@ export default function App() {
       } else {
         const voice = synthVoicesRef.current.get(trackName);
         if (voice) {
-          const track = sequencerState.tracks.find(t => t.name === trackName);
           const trackPitches = track?.pitches || sequencerState.pitches;
           const pitch = trackPitches[stepIdx] || 'C2';
           voice.synth.triggerAttackRelease(pitch, '16n');
@@ -613,6 +616,9 @@ export default function App() {
 
   const auditionNotePreview = (pitch: string) => {
     if (engineStarted) {
+      const track = sequencerState.tracks.find(t => t.name === selectedTrackName);
+      if (track?.muted) return;
+
       const voice = synthVoicesRef.current.get(selectedTrackName);
       if (voice) {
         voice.synth.triggerAttackRelease(pitch, '8n');
@@ -650,6 +656,7 @@ export default function App() {
     const defaultParams = {
       name,
       steps: new Array(16).fill(false),
+      muted: false,
       pitches: new Array(16).fill('C2'),
       cutoff: 800,
       resonance: 6.0,
@@ -727,16 +734,45 @@ export default function App() {
     }
   };
 
+  const handleToggleTrackMute = (trackName: string) => {
+    setSequencerState((prev) => ({
+      ...prev,
+      tracks: prev.tracks.map((track) =>
+        track.name === trackName ? { ...track, muted: !track.muted } : track
+      )
+    }));
+  };
+
+  const handleClearTrack = (trackName: string) => {
+    setSequencerState((prev) => ({
+      ...prev,
+      tracks: prev.tracks.map((track) => {
+        if (track.name !== trackName) {
+          return track;
+        }
+
+        return {
+          ...track,
+          steps: new Array(track.steps.length).fill(false),
+          pitches: isSynthTrack(track.name)
+            ? new Array((track.pitches || prev.pitches).length).fill('C2')
+            : track.pitches
+        };
+      })
+    }));
+  };
+
   // --- MAGENTA NEURAL NETWORK INFERENCE COUPLERS ---
   const handleEvolveMelody = async (temperature: number) => {
-    const targetTrack = sequencerState.tracks.find(t => t.name === selectedTrackName);
-    if (!targetTrack) return;
+    const targetTrackName = selectedTrackName;
+    const targetTrack = sequencerState.tracks.find(t => t.name === targetTrackName);
+    if (!targetTrack || !isSynthTrack(targetTrack.name)) return;
     const currentPitches = targetTrack.pitches || sequencerState.pitches;
     const result = await evolveMelodyWithMagenta(targetTrack.steps, currentPitches, temperature);
     
     setSequencerState((prev) => {
       const updatedTracks = prev.tracks.map((t) => {
-        if (t.name === selectedTrackName) {
+        if (t.name === targetTrackName) {
           return { 
             ...t, 
             steps: result.steps,
@@ -777,6 +813,7 @@ export default function App() {
         { 
           name: 'AcidSynth', 
           steps: result.tracks.AcidSynth,
+          muted: false,
           pitches: result.pitches,
           cutoff: 800,
           resonance: 6.0,
@@ -789,9 +826,9 @@ export default function App() {
           delayFeedback: 0.40,
           delayMix: 0.20
         },
-        { name: 'HiHat', steps: result.tracks.HiHat },
-        { name: 'Clap', steps: result.tracks.Clap },
-        { name: 'Kick', steps: result.tracks.Kick }
+        { name: 'HiHat', steps: result.tracks.HiHat, muted: false },
+        { name: 'Clap', steps: result.tracks.Clap, muted: false },
+        { name: 'Kick', steps: result.tracks.Kick, muted: false }
       ],
       pitches: result.pitches
     });
@@ -1082,6 +1119,8 @@ export default function App() {
             onAddTrack={handleAddTrack}
             onRemoveTrack={handleRemoveTrack}
             onRenameTrack={handleRenameTrack}
+            onToggleMute={handleToggleTrackMute}
+            onClearTrack={handleClearTrack}
             trackPresets={trackPresets}
             onLoadTrackPattern={handleLoadTrackPreset}
           />
