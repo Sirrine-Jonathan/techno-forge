@@ -6,16 +6,21 @@ interface AIModelControlsProps {
   loadingState: ModelsLoadingState;
   onEvolveMelody: (temperature: number) => void;
   onEvolveDrums: (temperature: number) => void;
+  onGenerateSong: (prompt: string) => Promise<void>;
 }
 
 export default function AIModelControls({
   loadingState,
   onEvolveMelody,
-  onEvolveDrums
+  onEvolveDrums,
+  onGenerateSong
 }: AIModelControlsProps) {
   const [temperature, setTemperature] = useState(1.15);
   const [evolvingMelody, setEvolvingMelody] = useState(false);
   const [evolvingDrums, setEvolvingDrums] = useState(false);
+  const [songPrompt, setSongPrompt] = useState('');
+  const [generatingSong, setGeneratingSong] = useState(false);
+  const [songError, setSongError] = useState<string | null>(null);
 
   const handleEvolveMelody = async () => {
     setEvolvingMelody(true);
@@ -33,6 +38,20 @@ export default function AIModelControls({
       await onEvolveDrums(temperature);
       setEvolvingDrums(false);
     }, 150);
+  };
+
+  const handleGenerateSong = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!songPrompt.trim()) return;
+    setGeneratingSong(true);
+    setSongError(null);
+    try {
+      await onGenerateSong(songPrompt.trim());
+    } catch (err: any) {
+      setSongError(err?.message || 'Failed to generate song.');
+    } finally {
+      setGeneratingSong(false);
+    }
   };
 
   return (
@@ -115,6 +134,28 @@ export default function AIModelControls({
       </div>
 
       <div className="border-t border-neutral-900 my-1" />
+
+      <form onSubmit={handleGenerateSong} className="bg-[#0F0F15] p-3 border border-neutral-900 flex flex-col gap-2">
+        <div className="text-[10px] uppercase tracking-widest text-[#FF00AA] font-bold">
+          Full AI Song Generator
+        </div>
+        <input
+          type="text"
+          value={songPrompt}
+          onChange={(e) => setSongPrompt(e.target.value)}
+          placeholder="Describe a full techno track vibe..."
+          className="bg-neutral-950 border border-neutral-800 text-xs px-2.5 py-2 text-white placeholder-neutral-600 focus:outline-none focus:border-[#FF00AA]"
+          disabled={generatingSong}
+        />
+        <button
+          type="submit"
+          disabled={generatingSong || !songPrompt.trim()}
+          className="text-[10px] py-2 uppercase font-bold border border-[#FF00AA]/60 text-[#FF00AA] hover:border-[#FF00AA] hover:text-white hover:bg-pink-950/20 disabled:opacity-50 cursor-pointer"
+        >
+          {generatingSong ? 'Generating arrangement...' : 'Generate Complete Song'}
+        </button>
+        {songError && <div className="text-[10px] text-red-400">{songError}</div>}
+      </form>
 
       {/* EXPLANATORY INFORMATION AND STATUS SECOND */}
       <p className="text-xs text-neutral-400 leading-relaxed">

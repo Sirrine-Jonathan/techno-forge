@@ -126,6 +126,30 @@ const normalizeSongPreset = (song: SongPreset): SongPreset => ({
   }
 });
 
+interface AIGeneratedSong {
+  songName: string;
+  bpm: number;
+  synthTrackName: string;
+  synthSteps: boolean[];
+  synthPitches: string[];
+  kickSteps: boolean[];
+  hihatSteps: boolean[];
+  clapSteps: boolean[];
+  synthSettings: {
+    cutoff: number;
+    resonance: number;
+    distortion: number;
+    sidechainEnabled: boolean;
+    waveform: 'sawtooth' | 'square';
+    decay: number;
+    envMod: number;
+    portamento: number;
+    delayFeedback: number;
+    delayMix: number;
+  };
+  explanation: string;
+}
+
 export default function App() {
   // --- STATE ---
   const [sequencerState, setSequencerState] = useState<SequencerState>(createEmptySequencerState());
@@ -907,6 +931,70 @@ export default function App() {
     });
   };
 
+  const applyGeneratedSong = (generated: AIGeneratedSong) => {
+    const safeName = generated.synthTrackName?.trim() || 'AIGeneratedSynth';
+    const state: SequencerState = {
+      tracks: [
+        {
+          name: safeName,
+          steps: generated.synthSteps,
+          muted: false,
+          pitches: generated.synthPitches,
+          noteLengths: new Array(STEPS_PER_BAR).fill(DEFAULT_NOTE_LENGTH),
+          cutoff: generated.synthSettings.cutoff,
+          resonance: generated.synthSettings.resonance,
+          distortion: generated.synthSettings.distortion,
+          sidechainEnabled: generated.synthSettings.sidechainEnabled,
+          waveform: generated.synthSettings.waveform,
+          decay: generated.synthSettings.decay,
+          envMod: generated.synthSettings.envMod,
+          portamento: generated.synthSettings.portamento,
+          delayFeedback: generated.synthSettings.delayFeedback,
+          delayMix: generated.synthSettings.delayMix
+        },
+        { name: 'HiHat', steps: generated.hihatSteps, muted: false },
+        { name: 'Clap', steps: generated.clapSteps, muted: false },
+        { name: 'Kick', steps: generated.kickSteps, muted: false }
+      ],
+      pitches: generated.synthPitches
+    };
+
+    setSequencerState(state);
+    updateBpm(generated.bpm);
+    setSelectedTrackName(safeName);
+    setActiveStep(0);
+    stepCounterRef.current = 0;
+
+    if (engineStarted) {
+      synthVoicesRef.current.forEach((voice) => {
+        voice.synth.dispose();
+        voice.distortion.dispose();
+        voice.filter.dispose();
+        voice.delay.dispose();
+        voice.duckingGain.dispose();
+        voice.volume.dispose();
+      });
+      synthVoicesRef.current.clear();
+      const voice = createSynthVoice(safeName, state.tracks[0]);
+      synthVoicesRef.current.set(safeName, voice);
+    }
+  };
+
+  const handleGenerateSong = async (prompt: string) => {
+    const response = await fetch('/api/generate-song', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await response.json();
+    if (!response.ok && !data?.fallback) {
+      throw new Error(data?.error || `Server returned error status: ${response.status}`);
+    }
+    const payload: AIGeneratedSong = data.fallback ? data.fallback : data;
+    applyGeneratedSong(payload);
+  };
+
   // --- DSP TRANSCRIPTION COMPLETION HANDLER ---
   const handleVocalTranscription = (result: DSPAnalysisResult) => {
     setSequencerState({
@@ -1287,6 +1375,7 @@ export default function App() {
               loadingState={modelsLoading}
               onEvolveMelody={handleEvolveMelody}
               onEvolveDrums={handleEvolveDrums}
+              onGenerateSong={handleGenerateSong}
             />
 
             {/* TECH DOCUMENTATION MANUAL - COLLAPSIBLE FOR FUNCTIONALITY FIRST, INFO SECOND */}
