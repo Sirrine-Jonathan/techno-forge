@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Music, Eye, Volume2, HelpCircle, Plus, Trash2, FolderOpen, 
-  Save, Sparkles, Check, Edit3, Settings2
+  Music, Volume2, VolumeX, HelpCircle, Plus, Trash2, FolderOpen, Eraser, Edit3, Settings2
 } from 'lucide-react';
 import { TrackType, SequencerState, TrackPreset } from '../types';
 
@@ -17,6 +16,8 @@ interface SequencerGridProps {
   onAddTrack: (trackName: string) => void;
   onRemoveTrack: (trackName: string) => void;
   onRenameTrack?: (oldName: string, newName: string) => void;
+  onToggleMute: (trackName: string) => void;
+  onClearTrack: (trackName: string) => void;
   trackPresets: TrackPreset[];
   onLoadTrackPattern: (preset: TrackPreset, trackName: string) => void;
 }
@@ -40,6 +41,8 @@ export default function SequencerGrid({
   onAddTrack,
   onRemoveTrack,
   onRenameTrack,
+  onToggleMute,
+  onClearTrack,
   trackPresets,
   onLoadTrackPattern
 }: SequencerGridProps) {
@@ -123,6 +126,15 @@ export default function SequencerGrid({
       onRenameTrack(editingTrackName, name);
     }
     setEditingTrackName(null);
+  };
+
+  const handleClearTrackClick = (trackName: string) => {
+    if (confirm(`Clear all steps on "${trackName}"?`)) {
+      onClearTrack(trackName);
+      if (activePitchPicker?.trackName === trackName) {
+        setActivePitchPicker(null);
+      }
+    }
   };
 
   // Sort tracks: all synths first, then drums (HiHat, Clap, Kick)
@@ -217,6 +229,7 @@ export default function SequencerGrid({
           {sortedTracks.map((track) => {
             const isSynth = track.name !== 'Kick' && track.name !== 'HiHat' && track.name !== 'Clap';
             const isSelected = selectedTrackName === track.name;
+            const isMuted = !!track.muted;
             const currentPitches = track.pitches || sequencerState.pitches;
 
             return (
@@ -226,7 +239,7 @@ export default function SequencerGrid({
                   isSynth && isSelected 
                     ? 'bg-[#1a111f] border-[#FF00AA]/50 shadow-[inset_0_0_10px_rgba(255,0,170,0.1)]' 
                     : 'bg-[#0F0F15]/60 border-neutral-900'
-                }`}
+                } ${isMuted ? 'opacity-60' : ''}`}
               >
                 {/* TRACK HEADER COLUMN (210px) */}
                 <div className="flex items-center justify-between pr-2.5 border-r border-neutral-800 h-full min-h-[44px]">
@@ -286,12 +299,32 @@ export default function SequencerGrid({
                     )}
                     
                     <span className="text-[8px] text-neutral-500 uppercase tracking-widest mt-0.5 select-none">
-                      {isSynth ? 'TB-303 SYNTH VOICE' : 'SAMPLED DRUM'}
+                      {isSynth ? 'TB-303 SYNTH VOICE' : 'SAMPLED DRUM'} {isMuted ? '• MUTED' : ''}
                     </span>
                   </div>
 
                   {/* Operational Controls Block */}
                   <div className="flex items-center gap-1 ml-1 shrink-0">
+                    <button
+                      onClick={() => onToggleMute(track.name)}
+                      className={`p-1 border transition-colors cursor-pointer ${
+                        isMuted
+                          ? 'bg-amber-950/40 border-amber-500 text-amber-300 hover:text-white'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-500 hover:border-amber-400 hover:text-amber-300'
+                      }`}
+                      title={isMuted ? 'Unmute Track' : 'Mute Track'}
+                    >
+                      {isMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                    </button>
+
+                    <button
+                      onClick={() => handleClearTrackClick(track.name)}
+                      className="p-1 bg-neutral-950 border border-neutral-800 hover:border-orange-400 text-neutral-500 hover:text-orange-300 transition-colors cursor-pointer"
+                      title="Clear Track Steps"
+                    >
+                      <Eraser className="w-3 h-3" />
+                    </button>
+
                     {isSynth && (
                       <>
                         {/* Selector indicator */}
