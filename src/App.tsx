@@ -356,6 +356,7 @@ export default function App() {
     Tone.getTransport().scheduleRepeat((time) => {
       const step = stepCounterRef.current;
       const currentState = stateRef.current;
+      const sixteenthNoteInSeconds = Tone.Time('16n').toSeconds();
 
       const kickTrack = currentState.tracks.find(t => t.name === 'Kick');
       const hihatTrack = currentState.tracks.find(t => t.name === 'HiHat');
@@ -384,7 +385,7 @@ export default function App() {
             const trackPitches = track.pitches || currentState.pitches;
             const pitch = trackPitches[step] || 'C2';
             const durationInSteps = getSafeStepDuration(track.noteLengths?.[step], track.steps.length - step);
-            const durationInSeconds = Tone.Time('16n').toSeconds() * durationInSteps;
+            const durationInSeconds = sixteenthNoteInSeconds * durationInSteps;
             voice.synth.triggerAttackRelease(pitch, durationInSeconds, time);
           }
         }

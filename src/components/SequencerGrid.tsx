@@ -100,17 +100,16 @@ export default function SequencerGrid({
     return Math.max(1, Math.min(fallback, stepsLength));
   };
 
-  const getContinuationStart = (trackName: string, stepIdx: number) => {
-    const track = sequencerState.tracks.find((t) => t.name === trackName);
-    if (!track) return null;
-    for (let startIdx = 0; startIdx < stepIdx; startIdx += 1) {
-      if (!track.steps[startIdx]) continue;
-      const stepLength = getNoteLength(track.steps.length - startIdx, track.noteLengths?.[startIdx]);
-      if (startIdx + stepLength > stepIdx) {
-        return startIdx;
+  const getTrackContinuationStarts = (steps: boolean[], noteLengths?: number[]) => {
+    const continuationStarts = new Array<number | null>(steps.length).fill(null);
+    for (let startIdx = 0; startIdx < steps.length; startIdx += 1) {
+      if (!steps[startIdx]) continue;
+      const stepLength = getNoteLength(steps.length - startIdx, noteLengths?.[startIdx]);
+      for (let continuationIdx = startIdx + 1; continuationIdx < startIdx + stepLength && continuationIdx < steps.length; continuationIdx += 1) {
+        continuationStarts[continuationIdx] = startIdx;
       }
     }
-    return null;
+    return continuationStarts;
   };
 
   const handleStepClick = (
@@ -269,6 +268,7 @@ export default function SequencerGrid({
             const isSelected = selectedTrackName === track.name;
             const isMuted = !!track.muted;
             const currentPitches = track.pitches || sequencerState.pitches;
+            const continuationStarts = isSynth ? getTrackContinuationStarts(track.steps, track.noteLengths) : null;
 
             return (
               <div
@@ -419,7 +419,7 @@ export default function SequencerGrid({
                 {/* STEP GRID CELLS */}
                 {track.steps.map((isActive, stepIdx) => {
                   const isCurrentPlayStep = activeStep === stepIdx && isPlaying;
-                  const continuationStart = isSynth ? getContinuationStart(track.name, stepIdx) : null;
+                  const continuationStart = continuationStarts?.[stepIdx] ?? null;
                   const isContinuation = continuationStart !== null && !isActive;
                   const noteLength = isSynth
                     ? getNoteLength(track.steps.length - stepIdx, track.noteLengths?.[stepIdx])
