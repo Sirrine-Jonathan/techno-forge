@@ -12,14 +12,18 @@ import VocalRecorder from './components/VocalRecorder';
 import AudioVisualizer from './components/AudioVisualizer';
 import LibraryControls from './components/LibraryControls';
 
+const STEPS_PER_BAR = 16;
+const DEFAULT_NOTE_LENGTH = 1;
+
 // Standard blank template for tracks
 const createEmptySequencerState = (): SequencerState => ({
   tracks: [
     { 
       name: 'AcidSynth', 
-      steps: new Array(16).fill(false),
+      steps: new Array(STEPS_PER_BAR).fill(false),
       muted: false,
-      pitches: new Array(16).fill('C2'),
+      pitches: new Array(STEPS_PER_BAR).fill('C2'),
+      noteLengths: new Array(STEPS_PER_BAR).fill(DEFAULT_NOTE_LENGTH),
       cutoff: 800,
       resonance: 6.0,
       distortion: 0.35,
@@ -31,11 +35,11 @@ const createEmptySequencerState = (): SequencerState => ({
       delayFeedback: 0.40,
       delayMix: 0.20
     },
-    { name: 'HiHat', steps: new Array(16).fill(false), muted: false },
-    { name: 'Clap', steps: new Array(16).fill(false), muted: false },
-    { name: 'Kick', steps: new Array(16).fill(false), muted: false }
+    { name: 'HiHat', steps: new Array(STEPS_PER_BAR).fill(false), muted: false },
+    { name: 'Clap', steps: new Array(STEPS_PER_BAR).fill(false), muted: false },
+    { name: 'Kick', steps: new Array(STEPS_PER_BAR).fill(false), muted: false }
   ],
-  pitches: new Array(16).fill('C2')
+  pitches: new Array(STEPS_PER_BAR).fill('C2')
 });
 
 interface SynthVoice {
@@ -48,6 +52,51 @@ interface SynthVoice {
 }
 
 const isSynthTrack = (trackName: string) => trackName !== 'Kick' && trackName !== 'HiHat' && trackName !== 'Clap';
+
+const getSafeStepDuration = (duration: number | undefined, remainingSteps: number) => {
+  const parsed = duration && Number.isFinite(duration) ? Math.floor(duration) : DEFAULT_NOTE_LENGTH;
+  return Math.max(DEFAULT_NOTE_LENGTH, Math.min(parsed, Math.max(DEFAULT_NOTE_LENGTH, remainingSteps)));
+};
+
+const sanitizeTrackTiming = (track: GridTrack): GridTrack => {
+  if (!isSynthTrack(track.name)) return track;
+
+  const steps = [...track.steps];
+  const noteLengths = Array.isArray(track.noteLengths) && track.noteLengths.length === steps.length
+    ? [...track.noteLengths]
+    : new Array(steps.length).fill(DEFAULT_NOTE_LENGTH);
+
+  let occupiedUntil = -1;
+  for (let i = 0; i < steps.length; i += 1) {
+    if (!steps[i]) continue;
+    if (i <= occupiedUntil) {
+      steps[i] = false;
+      noteLengths[i] = DEFAULT_NOTE_LENGTH;
+      continue;
+    }
+
+    const duration = getSafeStepDuration(noteLengths[i], steps.length - i);
+    noteLengths[i] = duration;
+    occupiedUntil = i + duration - 1;
+  }
+
+  return { ...track, steps, noteLengths };
+};
+
+const isStepCoveredByPreviousNote = (track: GridTrack, stepIdx: number) => {
+  if (!isSynthTrack(track.name)) return false;
+  const noteLengths = track.noteLengths || [];
+
+  for (let i = 0; i < stepIdx; i += 1) {
+    if (!track.steps[i]) continue;
+    const duration = getSafeStepDuration(noteLengths[i], track.steps.length - i);
+    if (i + duration > stepIdx) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const applyLegacySoundPresetToTrack = (
   track: GridTrack,
@@ -70,9 +119,10 @@ const normalizeSongPreset = (song: SongPreset): SongPreset => ({
   ...song,
   sequencerState: {
     ...song.sequencerState,
-    tracks: song.sequencerState.tracks.map((track) =>
-      isSynthTrack(track.name) ? applyLegacySoundPresetToTrack(track, song.soundPreset) : track
-    )
+    tracks: song.sequencerState.tracks.map((track) => {
+      const withPreset = isSynthTrack(track.name) ? applyLegacySoundPresetToTrack(track, song.soundPreset) : track;
+      return sanitizeTrackTiming(withPreset);
+    })
   }
 });
 
@@ -328,13 +378,14 @@ export default function App() {
 
       // 4. Play all TB-303 Acid Synths
       currentState.tracks.forEach((track) => {
-        const isSynth = track.name !== 'Kick' && track.name !== 'HiHat' && track.name !== 'Clap';
-        if (isSynth && !track.muted && track.steps[step]) {
+        if (isSynthTrack(track.name) && !track.muted && track.steps[step] && !isStepCoveredByPreviousNote(track, step)) {
           const voice = synthVoicesRef.current.get(track.name);
           if (voice) {
             const trackPitches = track.pitches || currentState.pitches;
             const pitch = trackPitches[step] || 'C2';
-            voice.synth.triggerAttackRelease(pitch, '16n', time);
+            const durationInSteps = getSafeStepDuration(track.noteLengths?.[step], track.steps.length - step);
+            const durationInSeconds = Tone.Time('16n').toSeconds() * durationInSteps;
+            voice.synth.triggerAttackRelease(pitch, durationInSeconds, time);
           }
         }
       });
@@ -364,7 +415,7 @@ export default function App() {
       }, time);
 
       // Increment step index
-      stepCounterRef.current = (stepCounterRef.current + 1) % 16;
+      stepCounterRef.current = (stepCounterRef.current + 1) % STEPS_PER_BAR;
     }, '16n');
 
     // Config default Transport settings
@@ -570,7 +621,27 @@ export default function App() {
       const updatedTracks = prev.tracks.map((t) => {
         if (t.name === trackName) {
           const updatedSteps = [...t.steps];
-          updatedSteps[stepIdx] = !updatedSteps[stepIdx];
+          const nextIsActive = !updatedSteps[stepIdx];
+
+          if (isSynthTrack(trackName)) {
+            const updatedLengths = t.noteLengths ? [...t.noteLengths] : new Array(t.steps.length).fill(DEFAULT_NOTE_LENGTH);
+            updatedSteps[stepIdx] = nextIsActive;
+            updatedLengths[stepIdx] = DEFAULT_NOTE_LENGTH;
+
+            if (nextIsActive) {
+              for (let i = 0; i < stepIdx; i += 1) {
+                if (!updatedSteps[i]) continue;
+                const prevDuration = getSafeStepDuration(updatedLengths[i], t.steps.length - i);
+                if (i + prevDuration > stepIdx) {
+                  updatedLengths[i] = Math.max(DEFAULT_NOTE_LENGTH, stepIdx - i);
+                }
+              }
+            }
+
+            return sanitizeTrackTiming({ ...t, steps: updatedSteps, noteLengths: updatedLengths });
+          }
+
+          updatedSteps[stepIdx] = nextIsActive;
           return { ...t, steps: updatedSteps };
         }
         return t;
@@ -610,6 +681,30 @@ export default function App() {
         }
         return t;
       });
+      return { ...prev, tracks: updatedTracks };
+    });
+  };
+
+  const updateNoteLengthManually = (trackName: string, stepIdx: number, durationInSteps: number) => {
+    setSequencerState((prev) => {
+      const updatedTracks = prev.tracks.map((t) => {
+        if (t.name !== trackName || !isSynthTrack(trackName) || !t.steps[stepIdx]) {
+          return t;
+        }
+
+        const updatedSteps = [...t.steps];
+        const updatedLengths = t.noteLengths ? [...t.noteLengths] : new Array(t.steps.length).fill(DEFAULT_NOTE_LENGTH);
+        const clampedDuration = getSafeStepDuration(durationInSteps, t.steps.length - stepIdx);
+
+        updatedLengths[stepIdx] = clampedDuration;
+        for (let i = stepIdx + 1; i < stepIdx + clampedDuration && i < updatedSteps.length; i += 1) {
+          updatedSteps[i] = false;
+          updatedLengths[i] = DEFAULT_NOTE_LENGTH;
+        }
+
+        return sanitizeTrackTiming({ ...t, steps: updatedSteps, noteLengths: updatedLengths });
+      });
+
       return { ...prev, tracks: updatedTracks };
     });
   };
@@ -655,9 +750,10 @@ export default function App() {
   const handleAddTrack = (name: string) => {
     const defaultParams = {
       name,
-      steps: new Array(16).fill(false),
+      steps: new Array(STEPS_PER_BAR).fill(false),
       muted: false,
-      pitches: new Array(16).fill('C2'),
+      pitches: new Array(STEPS_PER_BAR).fill('C2'),
+      noteLengths: new Array(STEPS_PER_BAR).fill(DEFAULT_NOTE_LENGTH),
       cutoff: 800,
       resonance: 6.0,
       distortion: 0.35,
@@ -756,7 +852,10 @@ export default function App() {
           steps: new Array(track.steps.length).fill(false),
           pitches: isSynthTrack(track.name)
             ? new Array((track.pitches || prev.pitches).length).fill('C2')
-            : track.pitches
+            : track.pitches,
+          noteLengths: isSynthTrack(track.name)
+            ? new Array(track.steps.length).fill(DEFAULT_NOTE_LENGTH)
+            : track.noteLengths
         };
       })
     }));
@@ -773,11 +872,12 @@ export default function App() {
     setSequencerState((prev) => {
       const updatedTracks = prev.tracks.map((t) => {
         if (t.name === targetTrackName) {
-          return { 
-            ...t, 
+          return sanitizeTrackTiming({
+            ...t,
             steps: result.steps,
-            pitches: result.pitches
-          };
+            pitches: result.pitches,
+            noteLengths: new Array(result.steps.length).fill(DEFAULT_NOTE_LENGTH)
+          });
         }
         return t;
       });
@@ -815,6 +915,7 @@ export default function App() {
           steps: result.tracks.AcidSynth,
           muted: false,
           pitches: result.pitches,
+          noteLengths: new Array(result.tracks.AcidSynth.length).fill(DEFAULT_NOTE_LENGTH),
           cutoff: 800,
           resonance: 6.0,
           distortion: 0.35,
@@ -969,15 +1070,21 @@ export default function App() {
     trackName: string, 
     steps: boolean[], 
     pitches?: string[],
+    noteLengths?: number[],
     soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>
   ) => {
     setSequencerState((prev) => {
       const updatedTracks = prev.tracks.map((t) => {
         if (t.name === trackName) {
-          const updated = {
+          const updated: GridTrack = {
             ...t,
             steps: [...steps],
-            pitches: pitches ? [...pitches] : t.pitches
+            pitches: pitches ? [...pitches] : t.pitches,
+            noteLengths: noteLengths
+              ? [...noteLengths]
+              : isSynthTrack(trackName)
+                ? new Array(steps.length).fill(DEFAULT_NOTE_LENGTH)
+                : t.noteLengths
           };
           if (soundPreset) {
             updated.cutoff = soundPreset.cutoff;
@@ -991,7 +1098,7 @@ export default function App() {
             updated.delayFeedback = soundPreset.delayFeedback;
             updated.delayMix = soundPreset.delayMix;
           }
-          return updated;
+          return sanitizeTrackTiming(updated);
         }
         return t;
       });
@@ -1032,7 +1139,7 @@ export default function App() {
   };
 
   const handleLoadTrackPreset = (preset: any, trackName: string) => {
-    handleLoadTrackPattern(trackName, preset.steps, preset.pitches, preset.soundPreset);
+    handleLoadTrackPattern(trackName, preset.steps, preset.pitches, preset.noteLengths, preset.soundPreset);
   };
 
   return (
@@ -1114,6 +1221,7 @@ export default function App() {
             selectedTrackName={selectedTrackName}
             onToggleStep={toggleStepManually}
             onUpdatePitch={updatePitchManually}
+            onUpdateNoteLength={updateNoteLengthManually}
             onPreviewPitch={auditionNotePreview}
             onSelectTrack={setSelectedTrackName}
             onAddTrack={handleAddTrack}

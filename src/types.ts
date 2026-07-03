@@ -5,6 +5,7 @@ export interface GridTrack {
   steps: boolean[];
   muted?: boolean;
   pitches?: string[]; // Per-track pitches for synths, length 16
+  noteLengths?: number[]; // Per-step duration in 16th-note columns for synth notes
   cutoff?: number;
   resonance?: number;
   distortion?: number;
@@ -51,6 +52,7 @@ export interface TrackPreset {
   trackName: TrackType;
   steps: boolean[];
   pitches?: string[]; // Only for Synth
+  noteLengths?: number[]; // Only for Synth
   soundPreset?: Omit<SoundPreset, 'id' | 'createdAt'>;
   createdAt: string;
 }
