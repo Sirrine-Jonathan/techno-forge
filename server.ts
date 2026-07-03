@@ -340,10 +340,27 @@ function sanitizeSteps(steps: any, fill = false): boolean[] {
 function sanitizePitches(pitches: any): string[] {
   const result = new Array(16).fill('C2');
   if (!Array.isArray(pitches)) return result;
-  const pattern = /^([A-G]#?)([1-5])$/;
+  const flatToSharp: Record<string, string> = {
+    DB: 'C#',
+    EB: 'D#',
+    GB: 'F#',
+    AB: 'G#',
+    BB: 'A#',
+    CB: 'B',
+    FB: 'E',
+    'E#': 'F',
+    'B#': 'C'
+  };
   for (let i = 0; i < 16; i += 1) {
-    const note = typeof pitches[i] === 'string' ? pitches[i].toUpperCase() : '';
-    result[i] = pattern.test(note) ? note : 'C2';
+    const raw = typeof pitches[i] === 'string' ? pitches[i].trim().toUpperCase() : '';
+    const match = raw.match(/^([A-G])(#|B)?([1-5])$/);
+    if (!match) {
+      result[i] = 'C2';
+      continue;
+    }
+    const normalizedNote = `${match[1]}${match[2] || ''}`;
+    const mapped = flatToSharp[normalizedNote] || normalizedNote;
+    result[i] = `${mapped}${match[3]}`;
   }
   return result;
 }

@@ -987,9 +987,26 @@ export default function App() {
       body: JSON.stringify({ prompt })
     });
 
-    const data = await response.json();
-    if (!response.ok && !data?.fallback) {
+    let data: any = null;
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    if (isJson) {
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+    }
+
+    if (!response.ok) {
+      if (data?.fallback) {
+        applyGeneratedSong(data.fallback as AIGeneratedSong);
+        return;
+      }
       throw new Error(data?.error || `Server returned error status: ${response.status}`);
+    }
+
+    if (!data) {
+      throw new Error('Song generation returned an invalid response payload.');
     }
     const payload: AIGeneratedSong = data.fallback ? data.fallback : data;
     applyGeneratedSong(payload);
