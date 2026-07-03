@@ -55,7 +55,7 @@ const isSynthTrack = (trackName: string) => trackName !== 'Kick' && trackName !=
 
 const getSafeStepDuration = (duration: number | undefined, remainingSteps: number) => {
   const parsed = duration && Number.isFinite(duration) ? Math.floor(duration) : DEFAULT_NOTE_LENGTH;
-  return Math.max(DEFAULT_NOTE_LENGTH, Math.min(parsed, Math.max(DEFAULT_NOTE_LENGTH, remainingSteps)));
+  return Math.max(DEFAULT_NOTE_LENGTH, Math.min(parsed, remainingSteps));
 };
 
 const sanitizeTrackTiming = (track: GridTrack): GridTrack => {
@@ -81,21 +81,6 @@ const sanitizeTrackTiming = (track: GridTrack): GridTrack => {
   }
 
   return { ...track, steps, noteLengths };
-};
-
-const isStepCoveredByPreviousNote = (track: GridTrack, stepIdx: number) => {
-  if (!isSynthTrack(track.name)) return false;
-  const noteLengths = track.noteLengths || [];
-
-  for (let i = 0; i < stepIdx; i += 1) {
-    if (!track.steps[i]) continue;
-    const duration = getSafeStepDuration(noteLengths[i], track.steps.length - i);
-    if (i + duration > stepIdx) {
-      return true;
-    }
-  }
-
-  return false;
 };
 
 const applyLegacySoundPresetToTrack = (
@@ -379,7 +364,7 @@ export default function App() {
 
       // 4. Play all TB-303 Acid Synths
       currentState.tracks.forEach((track) => {
-        if (isSynthTrack(track.name) && !track.muted && track.steps[step] && !isStepCoveredByPreviousNote(track, step)) {
+        if (isSynthTrack(track.name) && !track.muted && track.steps[step]) {
           const voice = synthVoicesRef.current.get(track.name);
           if (voice) {
             const trackPitches = track.pitches || currentState.pitches;

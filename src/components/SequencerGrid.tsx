@@ -439,22 +439,22 @@ export default function SequencerGrid({
                       >
                         {/* Visual indicator of note pitch if Synth and active */}
                         {isSynth && isActive ? (
-                          <div className="flex flex-col items-center justify-center leading-none">
-                            <span className="text-[8px] tracking-tighter opacity-90 font-bold font-mono">
-                              {currentPitches[stepIdx] || 'C2'}
-                            </span>
-                            <span className="text-[7px] opacity-70 font-mono">{durationLabel}</span>
-                          </div>
+                          <>
+                            <div className="flex flex-col items-center justify-center leading-none">
+                              <span className="text-[8px] tracking-tighter opacity-90 font-bold font-mono">
+                                {currentPitches[stepIdx] || 'C2'}
+                              </span>
+                              <span className="text-[7px] opacity-70 font-mono">{durationLabel}</span>
+                            </div>
+                            <div className="absolute bottom-0.5 right-0.5 text-[7px] opacity-40 font-mono">✎</div>
+                            {noteLength > 1 ? (
+                              <div className="absolute top-0.5 left-0.5 text-[7px] opacity-70 font-bold">
+                                +{noteLength - 1}
+                              </div>
+                            ) : null}
+                          </>
                         ) : isSynth && isContinuation ? (
                           <div className="text-[9px] opacity-50 font-mono">—</div>
-                        ) : null}
-                        {isSynth && isActive && (
-                          <div className="absolute bottom-0.5 right-0.5 text-[7px] opacity-40 font-mono">✎</div>
-                        )}
-                        {isSynth && isActive && noteLength > 1 ? (
-                          <div className="absolute top-0.5 left-0.5 text-[7px] opacity-70 font-bold">
-                            +{noteLength - 1}
-                          </div>
                         ) : null}
                       </button>
                     </div>
